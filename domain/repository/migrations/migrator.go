@@ -1,4 +1,4 @@
-package repository
+package migrations
 
 import (
 	"database/sql"
@@ -17,19 +17,19 @@ func handleErr(err error) {
 }
 
 type Migrator struct {
-	db             *sql.DB
+	Db             *sql.DB
 	migrationsPath string
 }
 
-func MakeMigrator(driverName string, dataSourceName string, migrationsPath string) *Migrator {
+func NewMigrator(driverName string, dataSourceName string, migrationsPath string) *Migrator {
 	db, err := sql.Open(driverName, dataSourceName)
 	handleErr(err)
-	return &Migrator{db: db, migrationsPath: migrationsPath}
+	return &Migrator{Db: db, migrationsPath: migrationsPath}
 }
 
 func (migrator *Migrator) UpToLastVersion() error {
 
-	instance, err := sqlite3.WithInstance(migrator.db, &sqlite3.Config{})
+	instance, err := sqlite3.WithInstance(migrator.Db, &sqlite3.Config{})
 
 	handleErr(err)
 
@@ -58,6 +58,6 @@ func (migrator *Migrator) UpToLastVersion() error {
 	return err
 }
 
-func (migrator *Migrator) CloseConnection() {
-	migrator.db.Close()
+func (migrator *Migrator) Close() {
+	migrator.Db.Close()
 }

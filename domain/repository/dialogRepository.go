@@ -5,17 +5,21 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var DialogNotFound = errors.New("диалог не найден")
+
 type IDialogRepository interface {
-	GetDialog(userID int64) (*entities.Dialog, error)
-	UpdateDialog(dialog *entities.Dialog) (bool, error)
-	RemoveDialog(userID int64) (bool, error)
-	CreateDialog(dialog *entities.Dialog) (int64, error)
+	Get(userID int64) (*entities.Dialog, error)
+	Update(dialog *entities.Dialog) (bool, error)
+	Delete(userID int64) (bool, error)
+	Create(dialog *entities.Dialog) (int64, error)
 	CloseConnection()
 	GetDb() *sql.DB
+	ping()
 }
 
 func MakeDialogRepository(db *sql.DB) IDialogRepository {
@@ -26,18 +30,26 @@ type dialogRepository struct {
 	db *sql.DB
 }
 
+func (repo *dialogRepository) ping() {
+	if err := repo.db.Ping(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func (repo *dialogRepository) GetDb() *sql.DB {
+	repo.ping()
 	return repo.db
 }
 
 func (repo *dialogRepository) CloseConnection() {
+	repo.ping()
 	err := repo.db.Close()
 	if err != nil {
 		_ = fmt.Errorf("could not close db: %w", err)
 	}
 }
-func (repo *dialogRepository) CreateDialog(dialog *entities.Dialog) (int64, error) {
-
+func (repo *dialogRepository) Create(dialog *entities.Dialog) (int64, error) {
+	repo.ping()
 	_, err := repo.db.Exec(
 		"insert into dialogs (id, userName, firstName, lastName, chatId, reply, replied) values ($1, $2, $3, $4, $5, $6, $7)",
 		dialog.Id, dialog.UserName, dialog.FirstName, dialog.LastName, dialog.ChatID, dialog.Reply, dialog.Replied,
@@ -48,19 +60,22 @@ func (repo *dialogRepository) CreateDialog(dialog *entities.Dialog) (int64, erro
 	}
 	return dialog.Id, err
 }
-func (repo *dialogRepository) GetDialog(id int64) (*entities.Dialog, error) {
-
+func (repo *dialogRepository) Get(id int64) (*entities.Dialog, error) {
+	repo.ping()
 	row := repo.db.QueryRow("select * from dialogs where id = $1", id)
 	dialog := entities.Dialog{}
 	err := row.Scan(&dialog.Id, &dialog.UserName, &dialog.FirstName, &dialog.LastName, &dialog.ChatID, &dialog.Reply, &dialog.Replied)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, DialogNotFound
+		}
 		return nil, err
 	}
 	return &dialog, err
 }
 
-func (repo *dialogRepository) UpdateDialog(dialog *entities.Dialog) (bool, error) {
-
+func (repo *dialogRepository) Update(dialog *entities.Dialog) (bool, error) {
+	repo.ping()
 	result, err := repo.db.Exec("update dialogs set userName = $1, firstName = $2, lastName = $3, chatId = $4, reply = $5, replied = $6 where id = $7",
 		dialog.UserName, dialog.FirstName, dialog.LastName, dialog.ChatID, dialog.Reply, dialog.Replied, dialog.Id,
 	)
@@ -78,8 +93,8 @@ func (repo *dialogRepository) UpdateDialog(dialog *entities.Dialog) (bool, error
 	return true, nil
 }
 
-func (repo *dialogRepository) RemoveDialog(id int64) (bool, error) {
-
+func (repo *dialogRepository) Delete(id int64) (bool, error) {
+	repo.ping()
 	result, err := repo.db.Exec("delete from dialogs where id = $1", id)
 
 	if err != nil {
@@ -91,7 +106,7 @@ func (repo *dialogRepository) RemoveDialog(id int64) (bool, error) {
 		return false, amountErr
 	}
 	if amount == 0 {
-		return false, errors.New("нет сущности")
+		return false, DialogNotFound
 	}
 
 	return true, nil

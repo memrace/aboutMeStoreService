@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"aboutMeStoreService/domain/repository/migrations"
 	"aboutMeStoreService/entities"
 	"context"
 	"fmt"
@@ -33,13 +34,13 @@ var dbCon = dbTestConnection{
 }
 
 func run(m *testing.M) (code int, err error) {
-	migrator := MakeMigrator(dbCon.d, dbCon.path, dbCon.mPath)
+	migrator := migrations.NewMigrator(dbCon.d, dbCon.path, dbCon.mPath)
 
 	migrator.UpToLastVersion()
 
-	repo = MakeDialogRepository(migrator.db)
+	repo = MakeDialogRepository(migrator.Db)
 
-	defer migrator.CloseConnection()
+	defer migrator.Close()
 
 	return m.Run(), nil
 }
@@ -49,21 +50,21 @@ func TestCreateDialog(t *testing.T) {
 
 	testDialog := createTestDialog(123)
 
-	id, err := repo.CreateDialog(testDialog)
+	id, err := repo.Create(testDialog)
 
 	assert.NoError(t, err)
 	assert.Equal(t, id, testDialog.Id)
 
 	testDialog2 := createTestDialog(12)
 
-	id, err = repo.CreateDialog(testDialog2)
+	_, err = repo.Create(testDialog2)
 
 	assert.Error(t, err)
 
 	testDialog2.ChatID = 2345
 	testDialog2.UserName = "23"
 
-	id, err = repo.CreateDialog(testDialog2)
+	id, err = repo.Create(testDialog2)
 	assert.NoError(t, err)
 	assert.Equal(t, id, testDialog2.Id)
 }
@@ -72,11 +73,11 @@ func TestGetDialog(t *testing.T) {
 	beforeEach()
 
 	dialogPointer := createTestDialog(12)
-	id, err := repo.CreateDialog(dialogPointer)
+	id, err := repo.Create(dialogPointer)
 
 	assert.NoError(t, err)
 
-	dialogReturnPointer, err := repo.GetDialog(id)
+	dialogReturnPointer, err := repo.Get(id)
 	assert.NotNil(t, dialogReturnPointer)
 	assert.NoError(t, err)
 	dialogReturn := *dialogReturnPointer
@@ -88,23 +89,23 @@ func TestUpdateDialog(t *testing.T) {
 	beforeEach()
 
 	dialogPointer := createTestDialog(12)
-	res, err := repo.UpdateDialog(dialogPointer)
+	res, err := repo.Update(dialogPointer)
 
 	assert.False(t, res)
 	assert.Error(t, err)
 
-	id, err := repo.CreateDialog(dialogPointer)
+	id, err := repo.Create(dialogPointer)
 
 	assert.NoError(t, err)
 	assert.Equal(t, id, dialogPointer.Id)
 
 	dialogPointer.Reply = "rep2"
-	res, err = repo.UpdateDialog(dialogPointer)
+	res, err = repo.Update(dialogPointer)
 
 	assert.True(t, res)
 	assert.NoError(t, err)
 
-	dialogReturnPointer, err := repo.GetDialog(dialogPointer.Id)
+	dialogReturnPointer, err := repo.Get(dialogPointer.Id)
 	dialogReturn := *dialogReturnPointer
 	dialog := *dialogPointer
 	assert.NoError(t, err)
@@ -116,14 +117,14 @@ func TestDeleteDialog(t *testing.T) {
 
 	dialog := createTestDialog(12)
 
-	res, err := repo.RemoveDialog(dialog.Id)
+	res, err := repo.Delete(dialog.Id)
 
 	assert.Error(t, err)
 	assert.False(t, res)
 
-	_, _ = repo.CreateDialog(dialog)
+	_, _ = repo.Create(dialog)
 
-	res, err = repo.RemoveDialog(dialog.Id)
+	res, err = repo.Delete(dialog.Id)
 
 	assert.NoError(t, err)
 	assert.True(t, res)

@@ -1,12 +1,18 @@
 package main
 
-import "aboutMeStoreService/repository"
+import (
+	"aboutMeStoreService/configuration"
+	"aboutMeStoreService/domain/repository/migrations"
+)
 
 func main() {
 
-	migrator := repository.MakeMigrator("sqlite3", "file:aboutMeDB.db", "./repository/migrations")
+	migrator := migrations.NewMigrator(
+		configuration.DbConnectionConfiguration.DriverName,
+		configuration.DbConnectionConfiguration.DataSourceName,
+		"./repository/migrations")
 
 	migrator.UpToLastVersion()
 
-	migrator.CloseConnection()
+	migrator.Close()
 }
