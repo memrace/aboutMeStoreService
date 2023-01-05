@@ -11,6 +11,8 @@ import (
 
 var InvalidId = errors.New("невалидный ид")
 
+var DialogNotFound = errors.New("диалог не найден")
+
 type DialogServiceConfiguration func(ds *DialogService) error
 
 type DialogService struct {
@@ -32,8 +34,8 @@ func NewDialogService(cfgs ...DialogServiceConfiguration) (*DialogService, error
 
 func WithLocalRepository() DialogServiceConfiguration {
 	db, err := sql.Open(
-		configuration.DbConnectionConfiguration.DriverName,
-		configuration.DbConnectionConfiguration.DataSourceName,
+		configuration.DbConnConfiguration.DriverName,
+		configuration.DbConnConfiguration.DataSourceName,
 	)
 
 	if err != nil {
@@ -48,7 +50,15 @@ func WithLocalRepository() DialogServiceConfiguration {
 }
 
 func (service *DialogService) Get(userId int64) (*entities.Dialog, error) {
-	return service.repository.Get(userId)
+	dialog, err := service.repository.Get(userId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, DialogNotFound
+		}
+		return nil, err
+	}
+
+	return dialog, nil
 }
 
 func (service *DialogService) Create(
@@ -71,8 +81,15 @@ func (service *DialogService) Create(
 	return service.repository.Create(&newDialog)
 }
 
-func (service *DialogService) Delete(userId int64) (bool, error) {
-	return service.repository.Delete(userId)
+func (service *DialogService) Delete(userId int64) error {
+	_, err := service.repository.Delete(userId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return DialogNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (service *DialogService) SetReply(userId int64, message string) error {

@@ -1,10 +1,12 @@
 package repository
 
 import (
+	"aboutMeStoreService/configuration"
 	"aboutMeStoreService/domain/repository/migrations"
 	"aboutMeStoreService/entities"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
@@ -23,20 +25,18 @@ func TestMain(m *testing.M) {
 
 var repo IDialogRepository
 
-type dbTestConnection struct {
-	d     string
-	path  string
-	mPath string
-}
-
-var dbCon = dbTestConnection{
-	"sqlite3", "file:test.db?cache=shared&mode=memory", "migrations",
-}
-
 func run(m *testing.M) (code int, err error) {
-	migrator := migrations.NewMigrator(dbCon.d, dbCon.path, dbCon.mPath)
+	cfg := configuration.DbTestConnectionConfiguration("migrations")
+	migrator := migrations.New(
+		cfg.DriverName,
+		cfg.DataSourceName,
+		cfg.MigrationsPath)
 
-	migrator.UpToLastVersion()
+	err = migrator.UpToLastVersion()
+	if err != nil {
+		log.Fatal(err)
+		return 0, err
+	}
 
 	repo = MakeDialogRepository(migrator.Db)
 

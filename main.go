@@ -7,9 +7,9 @@ import (
 
 func main() {
 
-	migrator := migrations.NewMigrator(
-		configuration.DbConnectionConfiguration.DriverName,
-		configuration.DbConnectionConfiguration.DataSourceName,
+	migrator := migrations.New(
+		configuration.DbConnConfiguration.DriverName,
+		configuration.DbConnConfiguration.DataSourceName,
 		"./repository/migrations")
 
 	migrator.UpToLastVersion()

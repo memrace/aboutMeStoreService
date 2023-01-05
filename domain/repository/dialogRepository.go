@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
-
-var DialogNotFound = errors.New("диалог не найден")
 
 type IDialogRepository interface {
 	Get(userID int64) (*entities.Dialog, error)
@@ -48,17 +46,25 @@ func (repo *dialogRepository) CloseConnection() {
 		_ = fmt.Errorf("could not close db: %w", err)
 	}
 }
+
+var DialogAlreadyExists = errors.New("диалог уже существует")
+
 func (repo *dialogRepository) Create(dialog *entities.Dialog) (int64, error) {
 	repo.ping()
 	_, err := repo.db.Exec(
 		"insert into dialogs (id, userName, firstName, lastName, chatId, reply, replied) values ($1, $2, $3, $4, $5, $6, $7)",
 		dialog.Id, dialog.UserName, dialog.FirstName, dialog.LastName, dialog.ChatID, dialog.Reply, dialog.Replied,
 	)
+
 	if err != nil {
+		sqliteError := err.(sqlite3.Error)
 		println(err)
-		return 0, err
+		if sqliteError.Code == 19 {
+			return 0, DialogAlreadyExists
+		}
+		return 0, sqliteError
 	}
-	return dialog.Id, err
+	return dialog.Id, nil
 }
 func (repo *dialogRepository) Get(id int64) (*entities.Dialog, error) {
 	repo.ping()
@@ -66,9 +72,6 @@ func (repo *dialogRepository) Get(id int64) (*entities.Dialog, error) {
 	dialog := entities.Dialog{}
 	err := row.Scan(&dialog.Id, &dialog.UserName, &dialog.FirstName, &dialog.LastName, &dialog.ChatID, &dialog.Reply, &dialog.Replied)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, DialogNotFound
-		}
 		return nil, err
 	}
 	return &dialog, err
@@ -106,7 +109,7 @@ func (repo *dialogRepository) Delete(id int64) (bool, error) {
 		return false, amountErr
 	}
 	if amount == 0 {
-		return false, DialogNotFound
+		return false, sql.ErrNoRows
 	}
 
 	return true, nil

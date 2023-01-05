@@ -21,7 +21,7 @@ type Migrator struct {
 	migrationsPath string
 }
 
-func NewMigrator(driverName string, dataSourceName string, migrationsPath string) *Migrator {
+func New(driverName string, dataSourceName string, migrationsPath string) *Migrator {
 	db, err := sql.Open(driverName, dataSourceName)
 	handleErr(err)
 	return &Migrator{Db: db, migrationsPath: migrationsPath}
