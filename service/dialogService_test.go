@@ -74,9 +74,22 @@ func TestDialogService_Create(t *testing.T) {
 	defer after()
 }
 
-// func TestDialogService_Get(t *testing.T) {
+func TestDialogService_Get(t *testing.T) {
+	before()
 
-// }
+	dialog, err := service.Get(0)
+	assert.Error(t, err)
+	assert.Nil(t, dialog)
+	assert.ErrorIs(t, err, DialogNotFound)
+
+	id, _ := service.Create(1, "test", "test1", "test2", 1)
+	dialog, err = service.Get(id)
+	assert.NoError(t, err)
+	assert.NotNil(t, dialog)
+	assert.Equal(t, id, dialog.Id)
+	assert.Equal(t, dialog.UserName, "test")
+	defer after()
+}
 
 //
 //func TestDialogService_Delete(t *testing.T) {
