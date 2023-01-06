@@ -4,6 +4,7 @@ import (
 	"aboutMeStoreService/configuration"
 	"aboutMeStoreService/domain/repository"
 	"aboutMeStoreService/domain/repository/migrations"
+	"aboutMeStoreService/entities"
 	"database/sql"
 	"log"
 	"testing"
@@ -51,7 +52,7 @@ func TestDialogService_Create(t *testing.T) {
 	before()
 	id, err := service.Create(0, "test", "test1", "test2", 0)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, InvalidId)
+	assert.ErrorIs(t, err, ErrInvalidId)
 	assert.Equal(t, id, int64(0))
 
 	id, err = service.Create(1, "test", "test1", "test2", 1)
@@ -69,7 +70,7 @@ func TestDialogService_Create(t *testing.T) {
 	_, err = service.Create(1, "test", "test1", "test2", 1)
 
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, repository.DialogAlreadyExists)
+	assert.ErrorIs(t, err, repository.ErrDialogAlreadyExists)
 
 	defer after()
 }
@@ -80,7 +81,7 @@ func TestDialogService_Get(t *testing.T) {
 	dialog, err := service.Get(0)
 	assert.Error(t, err)
 	assert.Nil(t, dialog)
-	assert.ErrorIs(t, err, DialogNotFound)
+	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
 
 	id, _ := service.Create(1, "test", "test1", "test2", 1)
 	dialog, err = service.Get(id)
@@ -91,11 +92,45 @@ func TestDialogService_Get(t *testing.T) {
 	defer after()
 }
 
-//
-//func TestDialogService_Delete(t *testing.T) {
-//	//service := beforeEach()
-//}
-//
-//func TestDialogService_SetReply(t *testing.T) {
-//	//service := beforeEach()
-//}
+func TestDialogService_Delete(t *testing.T) {
+	before()
+
+	id, _ := service.Create(1, "test", "test1", "test2", 1)
+	err := service.Delete(id)
+	assert.NoError(t, err)
+
+	err = service.Delete(id)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
+
+	defer after()
+}
+
+func TestDialogService_SetReply(t *testing.T) {
+	before()
+	id, _ := service.Create(1, "test", "test1", "test2", 1)
+	dialog, _ := service.Get(id)
+
+	reply := "testReply"
+
+	err := service.SetReply(dialog.Id, reply)
+	assert.NoError(t, err)
+
+	dialog, _ = service.Get(dialog.Id)
+	assert.Equal(t, reply, dialog.Reply)
+	assert.True(t, dialog.Replied)
+
+	err = service.SetReply(dialog.Id, reply)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, entities.ErrDialogAlreadyHasReply)
+
+	err = service.SetReply(dialog.Id, "")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, entities.ErrEmptyMessage)
+
+	err = service.SetReply(0, "")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
+
+	defer after()
+}

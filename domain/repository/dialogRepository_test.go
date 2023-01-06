@@ -89,9 +89,8 @@ func TestUpdateDialog(t *testing.T) {
 	beforeEach()
 
 	dialogPointer := createTestDialog(12)
-	res, err := repo.Update(dialogPointer)
+	err := repo.Update(dialogPointer)
 
-	assert.False(t, res)
 	assert.Error(t, err)
 
 	id, err := repo.Create(dialogPointer)
@@ -100,9 +99,8 @@ func TestUpdateDialog(t *testing.T) {
 	assert.Equal(t, id, dialogPointer.Id)
 
 	dialogPointer.Reply = "rep2"
-	res, err = repo.Update(dialogPointer)
+	err = repo.Update(dialogPointer)
 
-	assert.True(t, res)
 	assert.NoError(t, err)
 
 	dialogReturnPointer, err := repo.Get(dialogPointer.Id)
@@ -117,17 +115,15 @@ func TestDeleteDialog(t *testing.T) {
 
 	dialog := createTestDialog(12)
 
-	res, err := repo.Delete(dialog.Id)
+	err := repo.Delete(dialog.Id)
 
 	assert.Error(t, err)
-	assert.False(t, res)
 
 	_, _ = repo.Create(dialog)
 
-	res, err = repo.Delete(dialog.Id)
+	err = repo.Delete(dialog.Id)
 
 	assert.NoError(t, err)
-	assert.True(t, res)
 }
 
 func createTestDialog(userId int64) *entities.Dialog {

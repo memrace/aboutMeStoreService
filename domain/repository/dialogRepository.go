@@ -3,7 +3,6 @@ package repository
 import (
 	"aboutMeStoreService/entities"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 
@@ -12,8 +11,8 @@ import (
 
 type IDialogRepository interface {
 	Get(userID int64) (*entities.Dialog, error)
-	Update(dialog *entities.Dialog) (bool, error)
-	Delete(userID int64) (bool, error)
+	Update(dialog *entities.Dialog) error
+	Delete(userID int64) error
 	Create(dialog *entities.Dialog) (int64, error)
 	CloseConnection()
 	GetDb() *sql.DB
@@ -47,8 +46,6 @@ func (repo *dialogRepository) CloseConnection() {
 	}
 }
 
-var DialogAlreadyExists = errors.New("диалог уже существует")
-
 func (repo *dialogRepository) Create(dialog *entities.Dialog) (int64, error) {
 	repo.ping()
 	_, err := repo.db.Exec(
@@ -60,7 +57,7 @@ func (repo *dialogRepository) Create(dialog *entities.Dialog) (int64, error) {
 		sqliteError := err.(sqlite3.Error)
 		println(err)
 		if sqliteError.Code == 19 {
-			return 0, DialogAlreadyExists
+			return 0, ErrDialogAlreadyExists
 		}
 		return 0, sqliteError
 	}
@@ -72,45 +69,48 @@ func (repo *dialogRepository) Get(id int64) (*entities.Dialog, error) {
 	dialog := entities.Dialog{}
 	err := row.Scan(&dialog.Id, &dialog.UserName, &dialog.FirstName, &dialog.LastName, &dialog.ChatID, &dialog.Reply, &dialog.Replied)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrDialogNotExists
+		}
 		return nil, err
 	}
 	return &dialog, err
 }
 
-func (repo *dialogRepository) Update(dialog *entities.Dialog) (bool, error) {
+func (repo *dialogRepository) Update(dialog *entities.Dialog) error {
 	repo.ping()
 	result, err := repo.db.Exec("update dialogs set userName = $1, firstName = $2, lastName = $3, chatId = $4, reply = $5, replied = $6 where id = $7",
 		dialog.UserName, dialog.FirstName, dialog.LastName, dialog.ChatID, dialog.Reply, dialog.Replied, dialog.Id,
 	)
 	if err != nil {
-		return false, err
+		return err
 	}
 	amount, err := result.RowsAffected()
 	if err != nil {
-		return false, err
+		return err
 	}
 	if amount == 0 {
-		return false, errors.New("нет сущности")
+		return ErrDialogNotExists
 	}
 
-	return true, nil
+	return nil
 }
 
-func (repo *dialogRepository) Delete(id int64) (bool, error) {
+func (repo *dialogRepository) Delete(id int64) error {
 	repo.ping()
 	result, err := repo.db.Exec("delete from dialogs where id = $1", id)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	amount, amountErr := result.RowsAffected()
-	if amountErr != nil {
-		return false, amountErr
+	amount, err := result.RowsAffected()
+	if err != nil {
+		return err
 	}
 	if amount == 0 {
-		return false, sql.ErrNoRows
+		return ErrDialogNotExists
 	}
 
-	return true, nil
+	return nil
 }

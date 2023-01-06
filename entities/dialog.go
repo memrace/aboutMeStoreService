@@ -2,9 +2,9 @@ package entities
 
 import "errors"
 
-var DialogAlreadyHasReply = errors.New("ответ уже дан")
+var ErrDialogAlreadyHasReply = errors.New("ответ уже дан")
 
-var EmptyMessage = errors.New("пустой ответ")
+var ErrEmptyMessage = errors.New("пустой ответ")
 
 type Dialog struct {
 	Id        int64
@@ -19,11 +19,11 @@ type Dialog struct {
 func (dialog *Dialog) SetReply(message string) error {
 
 	if message == "" {
-		return EmptyMessage
+		return ErrEmptyMessage
 	}
 
 	if dialog.Replied {
-		return DialogAlreadyHasReply
+		return ErrDialogAlreadyHasReply
 	}
 
 	dialog.Reply = message

@@ -5,13 +5,8 @@ import (
 	"aboutMeStoreService/domain/repository"
 	"aboutMeStoreService/entities"
 	"database/sql"
-	"errors"
 	"log"
 )
-
-var InvalidId = errors.New("невалидный ид")
-
-var DialogNotFound = errors.New("диалог не найден")
 
 type DialogServiceConfiguration func(ds *DialogService) error
 
@@ -52,9 +47,6 @@ func WithLocalRepository() DialogServiceConfiguration {
 func (service *DialogService) Get(userId int64) (*entities.Dialog, error) {
 	dialog, err := service.repository.Get(userId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, DialogNotFound
-		}
 		return nil, err
 	}
 
@@ -68,7 +60,7 @@ func (service *DialogService) Create(
 	lastName string,
 	chatID int64) (int64, error) {
 	if id <= 0 || chatID <= 0 {
-		return 0, InvalidId
+		return 0, ErrInvalidId
 	}
 	newDialog := entities.Dialog{
 		Id:        id,
@@ -82,11 +74,8 @@ func (service *DialogService) Create(
 }
 
 func (service *DialogService) Delete(userId int64) error {
-	_, err := service.repository.Delete(userId)
+	err := service.repository.Delete(userId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return DialogNotFound
-		}
 		return err
 	}
 	return nil
@@ -102,9 +91,14 @@ func (service *DialogService) SetReply(userId int64, message string) error {
 	err = dialog.SetReply(message)
 
 	if err != nil {
-		return nil
+		return err
 	}
 
+	err = service.repository.Update(dialog)
+
+	if err != nil {
+		return nil
+	}
 	return nil
 }
 
