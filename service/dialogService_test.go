@@ -5,8 +5,11 @@ import (
 	"aboutMeStoreService/domain/repository"
 	"aboutMeStoreService/domain/repository/migrations"
 	"aboutMeStoreService/entities"
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +19,15 @@ var cfg = configuration.DbTestConnectionConfiguration("../domain/repository/migr
 
 var service *DialogService
 
+func TestMain(m *testing.M) {
+
+	code, err := run(m)
+	if err != nil {
+		fmt.Println(err)
+	}
+	os.Exit(code)
+}
+
 func withTestRepository(db *sql.DB) DialogServiceConfiguration {
 	repo := repository.MakeDialogRepository(db)
 	return func(ds *DialogService) error {
@@ -24,13 +36,13 @@ func withTestRepository(db *sql.DB) DialogServiceConfiguration {
 	}
 }
 
-func before() {
+func run(m *testing.M) (code int, err error) {
 	migrator := migrations.New(
 		cfg.DriverName,
 		cfg.DataSourceName,
 		cfg.MigrationsPath)
 
-	err := migrator.UpToLastVersion()
+	err = migrator.UpToLastVersion()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +52,8 @@ func before() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	defer after()
+	return m.Run(), nil
 }
 
 func after() {
@@ -48,8 +61,16 @@ func after() {
 	service = nil
 }
 
+func beforeEach() {
+	_, err := service.repository.GetDb().ExecContext(context.TODO(), "DELETE FROM dialogs")
+	if err != nil {
+		_ = fmt.Errorf(err.Error())
+		panic(err)
+	}
+}
+
 func TestDialogService_Create(t *testing.T) {
-	before()
+	beforeEach()
 	id, err := service.Create(0, "test", "test1", "test2", 0)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrInvalidId)
@@ -71,13 +92,10 @@ func TestDialogService_Create(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogAlreadyExists)
-
-	defer after()
 }
 
 func TestDialogService_Get(t *testing.T) {
-	before()
-
+	beforeEach()
 	dialog, err := service.Get(0)
 	assert.Error(t, err)
 	assert.Nil(t, dialog)
@@ -89,12 +107,10 @@ func TestDialogService_Get(t *testing.T) {
 	assert.NotNil(t, dialog)
 	assert.Equal(t, id, dialog.Id)
 	assert.Equal(t, dialog.UserName, "test")
-	defer after()
 }
 
 func TestDialogService_Delete(t *testing.T) {
-	before()
-
+	beforeEach()
 	id, _ := service.Create(1, "test", "test1", "test2", 1)
 	err := service.Delete(id)
 	assert.NoError(t, err)
@@ -103,11 +119,10 @@ func TestDialogService_Delete(t *testing.T) {
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
 
-	defer after()
 }
 
 func TestDialogService_SetReply(t *testing.T) {
-	before()
+	beforeEach()
 	id, _ := service.Create(1, "test", "test1", "test2", 1)
 	dialog, _ := service.Get(id)
 
@@ -132,5 +147,4 @@ func TestDialogService_SetReply(t *testing.T) {
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
 
-	defer after()
 }
