@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+option go_package = "aboutMe.golang.org/GolandProjects/aboutMeStoreServices/service";
+
+package service;
+
+
+service DialogService{
+
+    rpc Get (GetDialog) returns (Dialog) {}
+
+    rpc Create(CreateDialog) returns (DialogId){}
+
+    rpc Delete(DialogId) returns(Result){}
+
+    rpc SetReply(UserReply) returns(Result){}
+}
+
+
+message Result{
+  bool success = 1;
+}
+
+message UserReply{
+  int64 userId = 1;
+  string text = 2;
+}
+
+message GetDialog{
+  int64 user_id = 1;
+}
+
+message Dialog{
+  int64 id = 1;
+	string user_name = 2;
+  string first_name = 3;
+  string last_name = 4;
+  int64	chat_id = 5;
+  string reply = 6;
+	bool replied  = 7;
+}
+
+message CreateDialog{
+  int64 id = 1;
+  string user_name = 2;
+  string first_name = 3;
+  string last_name = 4;
+  int64	chat_id = 5;
+}
+
+message DialogId{
+  int64 id = 1;
+}

@@ -4,6 +4,7 @@ import (
 	"aboutMeStoreService/configuration"
 	"aboutMeStoreService/domain/repository"
 	"aboutMeStoreService/entities"
+	context "context"
 	"database/sql"
 	"log"
 )
@@ -44,62 +45,72 @@ func WithLocalRepository() DialogServiceConfiguration {
 	}
 }
 
-func (service *DialogService) Get(userId int64) (*entities.Dialog, error) {
-	dialog, err := service.repository.Get(userId)
+func (service DialogService) mustEmbedUnimplementedDialogServiceServer() {}
+
+func (service DialogService) Get(ctx context.Context, dto *GetDialog) (*Dialog, error) {
+	dialog, err := service.repository.Get(dto.GetUserId())
 	if err != nil {
 		return nil, err
 	}
 
-	return dialog, nil
+	return &Dialog{
+		Id:        dialog.Id,
+		UserName:  dialog.UserName,
+		FirstName: dialog.FirstName,
+		LastName:  dialog.LastName,
+		ChatId:    dialog.ChatID,
+		Reply:     dialog.Reply,
+		Replied:   dialog.Replied,
+	}, nil
 }
 
-func (service *DialogService) Create(
-	id int64,
-	userName string,
-	firstName string,
-	lastName string,
-	chatID int64) (int64, error) {
-	if id <= 0 || chatID <= 0 {
-		return 0, ErrInvalidId
+func (service DialogService) Create(ctx context.Context, dto *CreateDialog) (*DialogId, error) {
+	if dto.GetId() <= 0 || dto.GetChatId() <= 0 {
+		return &DialogId{
+			Id: 0,
+		}, ErrInvalidId
 	}
 	newDialog := entities.Dialog{
-		Id:        id,
-		UserName:  userName,
-		FirstName: firstName,
-		LastName:  lastName,
-		ChatID:    chatID,
+		Id:        dto.GetId(),
+		UserName:  dto.GetUserName(),
+		FirstName: dto.GetFirstName(),
+		LastName:  dto.GetLastName(),
+		ChatID:    dto.GetChatId(),
 		Replied:   false,
 	}
-	return service.repository.Create(&newDialog)
+	id, err := service.repository.Create(&newDialog)
+	return &DialogId{
+		Id: id,
+	}, err
 }
 
-func (service *DialogService) Delete(userId int64) error {
-	err := service.repository.Delete(userId)
+func (service DialogService) Delete(ctx context.Context, id *DialogId) (*Result, error) {
+	err := service.repository.Delete(id.GetId())
 	if err != nil {
-		return err
+		return &Result{Success: false}, err
 	}
-	return nil
+	return &Result{Success: true}, nil
 }
 
-func (service *DialogService) SetReply(userId int64, message string) error {
-	dialog, err := service.repository.Get(userId)
+func (service DialogService) SetReply(ctx context.Context, reply *UserReply) (*Result, error) {
+	dialog, err := service.repository.Get(reply.GetUserId())
 
 	if err != nil {
-		return err
+		return &Result{Success: false}, err
 	}
 
-	err = dialog.SetReply(message)
+	err = dialog.SetReply(reply.GetText())
 
 	if err != nil {
-		return err
+		return &Result{Success: false}, err
 	}
 
 	err = service.repository.Update(dialog)
 
 	if err != nil {
-		return nil
+		return &Result{Success: false}, err
 	}
-	return nil
+	return &Result{Success: true}, nil
 }
 
 func (service *DialogService) EndSession() {
