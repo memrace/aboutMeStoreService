@@ -71,24 +71,43 @@ func beforeEach() {
 
 func TestDialogService_Create(t *testing.T) {
 	beforeEach()
-	id, err := service.Create(0, "test", "test1", "test2", 0)
+	id, err := service.Create(context.TODO(), &CreateDialog{
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    0,
+	})
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrInvalidId)
-	assert.Equal(t, id, int64(0))
+	assert.Equal(t, id.GetId(), int64(0))
 
-	id, err = service.Create(1, "test", "test1", "test2", 1)
+	id, err = service.Create(context.TODO(), &CreateDialog{
+		Id:        1,
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    1,
+	})
 
-	assert.Equal(t, id, int64(1))
+	assert.Equal(t, id.GetId(), int64(1))
 	assert.NoError(t, err)
 
-	dialog, err := service.Get(id)
+	dialog, err := service.Get(context.TODO(), &GetDialog{
+		UserId: id.GetId(),
+	})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, dialog)
-	assert.False(t, dialog.Replied)
-	assert.Equal(t, dialog.Reply, "")
+	assert.False(t, dialog.GetReplied())
+	assert.Equal(t, dialog.GetReply(), "")
 
-	_, err = service.Create(1, "test", "test1", "test2", 1)
+	_, err = service.Create(context.TODO(), &CreateDialog{
+		Id:        1,
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    1,
+	})
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogAlreadyExists)
@@ -96,55 +115,92 @@ func TestDialogService_Create(t *testing.T) {
 
 func TestDialogService_Get(t *testing.T) {
 	beforeEach()
-	dialog, err := service.Get(0)
+	dialog, err := service.Get(context.TODO(), &GetDialog{UserId: 0})
 	assert.Error(t, err)
 	assert.Nil(t, dialog)
 	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
 
-	id, _ := service.Create(1, "test", "test1", "test2", 1)
-	dialog, err = service.Get(id)
+	id, _ := service.Create(context.TODO(), &CreateDialog{
+		Id:        1,
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    1,
+	})
+	dialog, err = service.Get(context.TODO(), &GetDialog{UserId: id.GetId()})
 	assert.NoError(t, err)
 	assert.NotNil(t, dialog)
-	assert.Equal(t, id, dialog.Id)
-	assert.Equal(t, dialog.UserName, "test")
+	assert.Equal(t, dialog.GetId(), id.GetId())
+	assert.Equal(t, dialog.GetUserName(), "test")
 }
 
 func TestDialogService_Delete(t *testing.T) {
 	beforeEach()
-	id, _ := service.Create(1, "test", "test1", "test2", 1)
-	err := service.Delete(id)
+	id, _ := service.Create(context.TODO(), &CreateDialog{
+		Id:        1,
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    1,
+	})
+	res, err := service.Delete(context.TODO(), &DialogId{Id: id.GetId()})
 	assert.NoError(t, err)
+	assert.True(t, res.GetSuccess())
 
-	err = service.Delete(id)
+	res, err = service.Delete(context.TODO(), &DialogId{Id: id.GetId()})
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
+	assert.False(t, res.GetSuccess())
 
 }
 
 func TestDialogService_SetReply(t *testing.T) {
 	beforeEach()
-	id, _ := service.Create(1, "test", "test1", "test2", 1)
-	dialog, _ := service.Get(id)
+	id, _ := service.Create(context.TODO(), &CreateDialog{
+		Id:        1,
+		UserName:  "test",
+		FirstName: "test1",
+		LastName:  "test2",
+		ChatId:    1,
+	})
 
 	reply := "testReply"
 
-	err := service.SetReply(dialog.Id, reply)
+	res, err := service.SetReply(context.TODO(), &UserReply{
+		UserId: id.GetId(),
+		Text:   reply,
+	})
 	assert.NoError(t, err)
+	assert.True(t, res.GetSuccess())
 
-	dialog, _ = service.Get(dialog.Id)
-	assert.Equal(t, reply, dialog.Reply)
-	assert.True(t, dialog.Replied)
+	dialog, _ := service.Get(context.TODO(), &GetDialog{
+		UserId: id.GetId(),
+	})
+	assert.Equal(t, reply, dialog.GetReply())
+	assert.True(t, dialog.GetReplied())
 
-	err = service.SetReply(dialog.Id, reply)
+	res, err = service.SetReply(context.TODO(), &UserReply{
+		UserId: dialog.GetId(),
+		Text:   reply,
+	})
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, entities.ErrDialogAlreadyHasReply)
+	assert.False(t, res.GetSuccess())
 
-	err = service.SetReply(dialog.Id, "")
+	res, err = service.SetReply(context.TODO(), &UserReply{
+		UserId: dialog.GetId(),
+		Text:   "",
+	})
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, entities.ErrEmptyMessage)
+	assert.False(t, res.GetSuccess())
 
-	err = service.SetReply(0, "")
+	res, err = service.SetReply(context.TODO(), &UserReply{
+		UserId: 0,
+		Text:   "",
+	})
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, repository.ErrDialogNotExists)
+	assert.False(t, res.GetSuccess())
 
 }
